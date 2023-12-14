@@ -7,7 +7,6 @@
       - [With pipx](#with-pipx)
       - [With pip](#with-pip)
     - [As a submodule](#as-a-submodule)
-    - [Graphical description](#graphical-description)
   - [Description](#description)
   - [Usage](#usage)
   - [Autocompletion](#autocompletion)
@@ -64,19 +63,19 @@
 1. Run `inv -l` and ensure the task are available.
 
 
-### Graphical description
-
-![Graphical description](./docs/img/structure.drawio.png)
-
 ## Description
 
 This repository holds a set of automation scripts for
 some common tasks like downloading static binaries binaries, shell setup (for VMs or SSH hosts),
-docker image handling, local kubernetes development, git aliases
-for now.
+docker image handling, local kubernetes development, git aliases.
 
-This repository can be used in your $HOME, or as part of another git repo (as a submodule named tasks). It uses Python import mechanism to provide the namespace `tasks`.
+It's not (yet) mean to be used as a Python package (in spite of having a [pyproject.toml](pyproject.toml)).
 
+This repository can be used in your $HOME, or as part of another specific to a repo as (as a submodule named `tasks`).
+This name is required to be tasks `tasks` for [pyivoke](http://pyinvoke.org) to find the tasks. This will trigger
+the code in `__init__.py` and try to import all the files in this repo. It will also look for the `_plugin` folder.
+
+Plugin support works for simple use cases. This will be improved in the future.
 
 A list of tasks can be shown with the command `inv -l` (`inv list-tasks`)
 
