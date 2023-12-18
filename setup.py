@@ -128,7 +128,10 @@ def download_extract_and_copy(
         else:
             target = copy_to / find_file
         try:
-            shutil.move(file_to_copy, target)
+            # https://stackoverflow.com/questions/42392600/oserror-errno-18-invalid-cross-device-link
+            # shutil.move(file_to_copy, target)
+            shutil.copy(file_to_copy, target)
+            os.unlink(file_to_copy)
         except shutil.Error:  # exists
             pass
         os.chmod(target, permission)
