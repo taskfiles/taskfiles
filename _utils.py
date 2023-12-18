@@ -12,7 +12,7 @@ from functools import lru_cache
 from pathlib import Path
 from shlex import split
 from shutil import which
-from subprocess import check_output
+from subprocess import SubprocessError, check_output
 from tempfile import NamedTemporaryFile
 from textwrap import dedent
 from typing import Any, Dict, Iterator, List, Optional, Union
@@ -26,7 +26,14 @@ def get_git_root_directory() -> str:
     """
     Gets the top level directory of the git repository
     """
-    return check_output(split("git rev-parse --show-toplevel")).decode("utf-8").strip()
+    try:
+        return (
+            check_output(split("git rev-parse --show-toplevel")).decode("utf-8").strip()
+        )
+    except SubprocessError:
+        sys.exit(
+            "This command should be run in a git repository. Create one with git init"
+        )
 
 
 @lru_cache
