@@ -1163,7 +1163,7 @@ def container_registry_login(
     if DOCKER_REGISTRY_PASSWORD:
         ctx.run(
             f"echo $DOCKER_REGISTRY_PASSWORD | docker login -u {username} "
-            "--password-stdin {domain}"
+            f"--password-stdin {domain}"
         )
     elif password_stdin:
         print("Reading password from stdin...", file=sys.stderr)
