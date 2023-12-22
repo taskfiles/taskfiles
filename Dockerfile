@@ -25,3 +25,4 @@ RUN pip install --no-cache-dir "invoke>2.0,<3.0" hunter pdbpp
 ENV PATH=$HOME/.local/bin:$PATH
 
 COPY . /tasks/
+CMD ["/bin/bash"]
