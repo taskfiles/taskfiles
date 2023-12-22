@@ -17,27 +17,11 @@ RUN true && \
     apt-get update && \
     apt-get --no-install-recommends -yqq install git-core gettext && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* && \
-    curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
+    rm -rf /var/lib/apt/lists/*
 
 # hadolint ignore=DL3013
 RUN pip install --no-cache-dir "invoke>2.0,<3.0" hunter pdbpp
 
-
-ENV UID=2000 \
-    USER=user
-
-ENV PATH=/home/$USER/.local/bin:$PATH
-
-# hadolint ignore=SC2086
-RUN groupadd -g ${UID} -r ${USER} \
-    && useradd -l -u ${UID} -r -g ${USER} ${USER} && \
-    mkdir -p /home/${USER}/.local/bin && \
-    mkdir -p /home/${USER}/.cache && \
-    chown -R ${USER} /home/${USER}
-
-USER ${USER}
-WORKDIR /
-RUN ${CUSTOM_INSTALL_SCRIPT}
+ENV PATH=$HOME/.local/bin:$PATH
 
 COPY . /tasks/
