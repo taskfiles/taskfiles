@@ -403,6 +403,29 @@ def install_kustomize(ctx: Context, version="5.0.3", overwrite=False):
     )
 
 
+@task()
+def install_tkn(ctx: Context, overwrite=False, verbose=False, version="0.33.0"):
+    """Install tekton CLI"""
+    machine_ = platform.machine()
+    system_ = platform.system()
+    if machine_ == "arm64":
+        machine_ = "aarch64"
+    if system_ == "Darwin":
+        machine_ = "all"
+    url = format_string(
+        "https://github.com/tektoncd/cli/releases/download/v{version}/"
+        "tkn_{version}_{system}_{machine_}.tar.gz",
+        # "/v{version}/kustomize_v{version}_{system_lower}_{machine_amd_or_arm}.tar.gz",
+        version=version,
+        machine_=machine_,
+    )
+    download_extract_and_copy(
+        url,
+        find_file="tkn",
+        overwrite=overwrite,
+    )
+
+
 @task(help={"plugin_": "Plugin to install, can be repated"})
 def install_ibmcloud_plugin(ctx: Context, plugin_: List[str] = [], overwrite=False):
     """Installs a list of plugins"""
@@ -426,6 +449,13 @@ def install_ibmcloud_plugin(ctx: Context, plugin_: List[str] = [], overwrite=Fal
         installed: Result = ctx.run(f"ibmcloud plugin install  {plugin} -f", warn=True)
         if not installed.ok:
             print(f"Plugin {plugin} failed.")
+
+
+# @task()
+# def install_direnv(ctx: Context, debug=False, overwrite=False):
+#     """Installs direnv"""
+#     # Rough translation of the bash script from https://direnv.net/install.sh
+#     kernel = ctx.run("")
 
 
 @task()
