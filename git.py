@@ -4,6 +4,7 @@ import shlex
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from shutil import which
 from subprocess import check_output
 from typing import List
 
@@ -247,3 +248,31 @@ def worktree_cleanup(ctx: Context, git_repo_root=None):
 def submodule_update(ctx: Context):
     """Shorthand for updating the submodules from remotes recursively"""
     ctx.run("git submodule update --remote --recursive")
+
+
+@task()
+def git_clone(ctx: Context, repo_url=None, destination_=None, git_private_key=None):
+    if not which("git"):
+        sys.exit("git command not found")
+    destination: Path = Path(destination_)
+
+    if not destination.exists():
+        destination.mkdir(parents=True)
+
+    ctx.run('echo "Creating Git SSH key and adjusting permissions..."')
+    ctx.run(
+        'echo "$GIT_SSH_KEY" > ~/.ssh/id_rsa',
+        env={
+            "GIT_SSH_KEY": git_private_key,
+        },
+    )
+    ctx.run("chmod 700 ~/.ssh/id_rsa")
+
+    ctx.run(
+        "git clone --progress --recurse-submodules $GIT_OPTS -n $GIT_CLONE_URL $REPO_FOLDER",  # noqa: E501
+        env={
+            "GIT_OPS": "",
+            "GIT_CLONE_URL": repo_url,
+            "REPO_FOLDER": destination,
+        },
+    )
