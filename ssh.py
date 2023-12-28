@@ -1,10 +1,12 @@
+import ast
 import ipaddress
 import os
 import re
 import sys
+from shutil import which
 from urllib.parse import urlparse
 
-from invoke import Context, task
+from invoke import Context, Result, task
 
 
 @task(autoprint=True)
@@ -30,6 +32,12 @@ def create_ssh_key_private_rsa(ctx: Context, comment=None, name="key"):
 
 SSHUTTLE_REMOTE = os.environ.get("SSHUTTLE_REMOTE")
 SSHUTTLE_TARGETS = re.split(r"[\s+,]", os.environ.get("SSHUTTLE_TARGETS", ""))
+sshuttle_reconnect_ = os.environ.get("SSHUTTLE_RECONNECT", "True")
+
+try:
+    SSHUTTLE_RECONNECT = ast.literal_eval(sshuttle_reconnect_)
+except:  # noqa: E722
+    SSHUTTLE_RECONNECT = True
 
 
 def is_valid_ip(address):
@@ -68,6 +76,8 @@ OP_PASSWORD_NAME_SUDO = os.getenv("OP_PASSWORD_NAME_SUDO", None)
         "daemon": "Run in the background",
         "op_password_name_sudo": "If the op command line is available , use op to get the"
         " password",
+        "reconnect": f"Reconnect if sshuttle fails, (default {SSHUTTLE_RECONNECT}) "
+        "defined in $SSHUTTLE_RECONNECT.",
     }
 )
 def sshuttle(
@@ -76,36 +86,48 @@ def sshuttle(
     target_: list[str] = [],
     op_password_name_sudo=OP_PASSWORD_NAME_SUDO,
     daemon=False,
+    reconnect=SSHUTTLE_RECONNECT,
 ):
     """Runs sshuttle to reach hosts that are behind a firewall or a different network"""
-    target_ = target_ or SSHUTTLE_TARGETS
-    hosts = []
-    if not remote:
-        sys.exit("No remote host defined. Can be an argument or $SSHUTTLE_REMOTE")
-
-    for target in target_:
-        if not is_valid_ip(target):
-            ips = get_A_records(ctx, target)
-            hosts.extend(ips)
-        else:
-            hosts.append(target)
-
-    if not hosts:
-        sys.exit(f"No targets defined (tried {remote})")
-    prefix = ""
-    if op_password_name_sudo:
-        prefix = (
-            f"{prefix} echo \"$(op item get '{op_password_name_sudo}' --field password)\""
-            " | sudo -S"
-        ).strip()
-
-    targets = " ".join(hosts)
-    args = ""
-    if daemon:
-        args = f"{args} -D"
     while True:
-        ctx.run(
+        target_ = target_ or SSHUTTLE_TARGETS
+        hosts = []
+        if not remote:
+            sys.exit("No remote host defined. Can be an argument or $SSHUTTLE_REMOTE")
+
+        for target in target_:
+            if not is_valid_ip(target):
+                ips = get_A_records(ctx, target)
+                hosts.extend(ips)
+            else:
+                hosts.append(target)
+
+        if not hosts:
+            sys.exit(f"No targets defined (tried {remote})")
+        prefix = ""
+        if op_password_name_sudo:
+            if not which("op"):
+                sys.exit("1Password CLI not found. Skipping...")
+            else:
+                prefix = (
+                    f"""
+                    {prefix} echo "$(op item get '{op_password_name_sudo}' \
+                    --field password)" | sudo -S'
+                    """
+                ).strip()
+
+        targets = " ".join(hosts)
+        if not targets:
+            sys.exit("No targets could be resolved.")
+        args = ""
+        if daemon:
+            args = f"{args} -D"
+        sshuttle_: Result = ctx.run(
             f"{prefix} sshuttle -r {remote} {targets} {args}",
             # in_stream=None,
             pty=True,
+            warn=True,
         )
+        print(f"sshuttle process exited (code: {sshuttle_.return_code})", file=sys.stderr)
+        if not sshuttle_.ok and not reconnect:
+            return
