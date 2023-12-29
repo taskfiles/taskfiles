@@ -192,7 +192,7 @@ def format_string(braced_string: str, **extra: Dict[str, str]) -> str:
     # Some github releases use this
     if machine == "x86_64":
         machine_amd_or_arm = "amd64"
-    elif machine == "aarch64":
+    elif machine in {"aarch64", "arm64"}:
         machine_amd_or_arm = "arm64"
     else:
         machine_amd_or_arm = "FIXME"
@@ -354,7 +354,7 @@ def install_fzf(ctx: Context, version="0.41.1", overwrite=False):
 
 @task()
 def install_k9s(
-    ctx: Context, version="0.27.4", system=None, machine=None, overwrite=False
+    ctx: Context, version="0.30.6", system=None, machine=None, overwrite=False
 ):
     """Downloads k9s (TUI for kubernetes)"""
     url = format_string(
