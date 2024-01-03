@@ -1125,6 +1125,84 @@ def kubeconfig_picker(ctx: Context, exclude_=[]):
         print(f"No kubeconfig found in {path.absolute()}", file=sys.stderr)
 
 
+@task(
+    autoprint=True,
+    help={
+        "directory": "Where to look for .kubeconfig.xxx",
+        "prompt": "The prompt to show to the user",
+        "query": "A query to begin with",
+        "export": "Shows export",
+        "shell": "The shell to use, defaults to ",
+    },
+)
+def dot_kubeconfig(
+    ctx: Context,
+    directory=".",
+    prompt="Please select a kubeconfig ",
+    query="",
+    export=False,
+    shell="",
+) -> str:
+    """
+    Selects a .kubeconfig file for kubectl/oc operations.
+
+    It can be used for setting the kubeconfig in the shell, like in bash/zsh:
+
+    export KUBECONFIG=$(inv dot-kubeconfig --export)
+
+    or in fish:
+
+    set -x KUBECONFIG=$(inv dot-kubeconfig --export)
+
+    Also can be used to define the kubeconfig to use in sub-sequent commands.
+
+    inv dot-kubeconfig oc-project
+
+    """
+    # Notes, running with echo on will not cause issues in this command since
+    # it's all python based.
+    kubeconfigs = [p for p in Path(directory).glob(".kubeconfig*") if p.is_file()]
+    if not kubeconfigs:
+        sys.exit(f"No .kubeconfig* files in {directory}")
+    if ctx.config.run.echo:
+        print(*kubeconfigs, sep="\n", file=sys.stderr)
+
+    picked_config = picker(ctx, options=kubeconfigs, prompt=prompt, query=query)
+    if not picked_config:
+        print("No kubeconfig selected.", file=sys.stderr)
+        return ""
+    # For command chaining, the commands
+    os.environ["KUBECONFIG"] = picked_config
+
+    if export:
+        if not shell:
+            shell_from_ps = ctx.run(
+                f"ps -o pid,comm | grep {os.getppid()}", hide=True, warn=True
+            )
+            if not shell_from_ps.ok:
+                sys.exit("Couldn't detect the shell, please use --shell")
+            _, shell = shell_from_ps.stdout.strip().split(" ")
+            shell = shell.strip("-")
+
+        if ctx.config.run.echo:
+            print(f"# Showing instructions for {shell}", file=sys.stderr)
+        if shell in {"bash", "sh", "zsh"}:
+            print("# export KUBECONFIG=$(inv dot-kubeconfig --export)", file=sys.stderr)
+        elif shell == "fish":
+            print(
+                "# set -x KUBECONFIG (inv dot-kubeconfig --export)",
+                sep="\n",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                f"The shell {shell} is not detected, but probably the "
+                "following command may work:",
+                file=sys.stderr,
+            )
+    return picked_config
+
+
 # @task()
 # def helm_values_delta(
 #     ctx: Context,

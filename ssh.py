@@ -128,6 +128,11 @@ def sshuttle(
             pty=True,
             warn=True,
         )
-        print(f"sshuttle process exited (code: {sshuttle_.return_code})", file=sys.stderr)
-        if not sshuttle_.ok and not reconnect:
+        exit_code = sshuttle_.return_code
+        # Ctrl-C/SIGINT generate exit code 1. We should stop.
+        if exit_code == 1 or not reconnect:
             return
+        print(
+            f"sshuttle process exited (code: {sshuttle_.return_code}). Retry...",
+            file=sys.stderr,
+        )
