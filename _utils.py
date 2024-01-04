@@ -2,10 +2,11 @@
 Utilities to use from task definitions
 """
 import json
-import os
 import re
 import shlex
 import sys
+from contextlib import contextmanager
+from copy import copy
 from dataclasses import dataclass, fields
 from datetime import datetime
 from functools import lru_cache
@@ -19,6 +20,32 @@ from typing import Any, Dict, Iterator, List, Optional, Union
 from urllib.request import Request
 
 from invoke import Context, Result, task
+from invoke.runners import Local
+
+
+class CarriageReturnRunner(Local):
+    """
+    Custom runner that transforms the input of \n -> \r\n
+    Seems to be required for fzf and k9s, otherwise the returns are not captured.
+    https://github.com/pyinvoke/invoke/issues/917
+    """
+
+    def _write_proc_stdin(self, data):
+        if data == b"\n":
+            data = b"\r\n"
+        return super()._write_proc_stdin(data)
+
+
+@contextmanager
+def carriage_return_line_runner(ctx: Context) -> None:
+    """
+    Changes the local runner to one that maps new lines into CRNL.
+    This is a will fix commands that require that input like redis-cli, k9s, fzf, etc.
+    """
+    restore_after = copy(ctx.config.runners.local)
+    ctx.config.runners.local = CarriageReturnRunner
+    yield
+    ctx.config.runners.local = restore_after
 
 
 @lru_cache
@@ -160,6 +187,7 @@ def get_commit_dict(ctx: Context, branch="origin/main", pre_fetch=True) -> Dict[
     return result
 
 
+# FIXME: Use the the runner that adds Carriage Return to the New Lines
 @task(
     autoprint=True,
     help={
@@ -167,6 +195,7 @@ def get_commit_dict(ctx: Context, branch="origin/main", pre_fetch=True) -> Dict[
         "prompt": "Prompt to show",
         "empty": "Empty value",
         "query": "Initial query",
+        "multi": "Multiple selection allowed (Tab)",
     },
 )
 def picker(
@@ -175,6 +204,7 @@ def picker(
     prompt=None,
     empty=None,
     query=None,
+    multi=False,
 ) -> Optional[str]:
     """A fzf wrapper"""
     if not options:
@@ -199,7 +229,10 @@ def picker(
         fzf_args = "" if not prompt else f"--prompt {shlex.quote(prompt)}"
         if query:
             fzf_args = f"{fzf_args} --query {query}"
-        os.system(f"fzf  {fzf_args} <{options_file.name} > {target}")  # noqa: S605
+        if multi:
+            fzf_args = f"{fzf_args} --multi"
+        with carriage_return_line_runner(ctx):
+            ctx.run(f"fzf  {fzf_args} <{options_file.name} > {target}")
         result = target.read_text().strip()
         if result and result == empty:
             return ""

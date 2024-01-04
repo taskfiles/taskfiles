@@ -1133,6 +1133,8 @@ def kubeconfig_picker(ctx: Context, exclude_=[]):
         "query": "A query to begin with",
         "export": "Shows export",
         "shell": "The shell to use, defaults to ",
+        "multi": "Allows to concatenate multiple kubeconfigs KUBECONFIG=one:two",
+        "absolute": "Use absolute paths",
     },
 )
 def dot_kubeconfig(
@@ -1141,6 +1143,8 @@ def dot_kubeconfig(
     prompt="Please select a kubeconfig ",
     query="",
     export=False,
+    multi=False,
+    absolute=False,
     shell="",
 ) -> str:
     """
@@ -1162,15 +1166,21 @@ def dot_kubeconfig(
     # Notes, running with echo on will not cause issues in this command since
     # it's all python based.
     kubeconfigs = [p for p in Path(directory).glob(".kubeconfig*") if p.is_file()]
+    if absolute:
+        kubeconfigs = [p.absolute() for p in kubeconfigs]
     if not kubeconfigs:
         sys.exit(f"No .kubeconfig* files in {directory}")
     if ctx.config.run.echo:
         print(*kubeconfigs, sep="\n", file=sys.stderr)
 
-    picked_config = picker(ctx, options=kubeconfigs, prompt=prompt, query=query)
+    picked_config = picker(
+        ctx, options=kubeconfigs, prompt=prompt, query=query, multi=multi
+    )
     if not picked_config:
         print("No kubeconfig selected.", file=sys.stderr)
         return ""
+    if multi:
+        picked_config = ":".join(picked_config.splitlines())
     # For command chaining, the commands
     os.environ["KUBECONFIG"] = picked_config
 
@@ -1200,7 +1210,7 @@ def dot_kubeconfig(
                 "following command may work:",
                 file=sys.stderr,
             )
-    return picked_config
+    return picked_config.strip()
 
 
 # @task()
