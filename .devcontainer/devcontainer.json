@@ -25,5 +25,5 @@
 
 	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
 	// "remoteUser": "root"
-	"initializeCommand": "pre-commit install"
+	"initializeCommand": "pre-commit install || true"
 }
