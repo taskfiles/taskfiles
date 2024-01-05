@@ -3,13 +3,15 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "tasks"
+name = "taskfiles"
 dynamic = ["version"]
-description = ''
+description = """\
+Automation scripts based on invoke library.
+"""
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 license = "BSD-3-Clause"
-keywords = []
+keywords = ["Automation"]
 authors = [{ name = "Nahuel Defossé", email = "D3f0@users.noreply.github.com" }]
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -25,25 +27,31 @@ classifiers = [
 dependencies = ["invoke<3.0"]
 
 [tool.hatch.version]
-path = "__about__.py"
+path = "src/taskfiles/__about__.py"
 
 
 [tool.hatch.envs.default]
 dependencies = [
   "coverage[toml]>=6.5",
   "pytest",
+  "pytest-virtualenv==1.7.0",
   "hunter<4.0",
-  "shiv==1.0.3",
+  # If we can re-distribute a binary, probably the pyz version
+  # is not as attractive.
+  # "shiv==1.0.3",
   "pdbpp==0.10.3",
+  "pyoxidizer==0.24.0",
 ]
 
 [tool.hatch.envs.default.scripts]
-list-dev-tasks = "inv -r _tests/ -l"
-run-dev-task = "inv -r _tests/ {args:run-in-docker}"
+list-dev-tasks = "inv -r tests/ -l"
+run-dev-task = "inv -r tests/ {args:run-in-docker}"
 test = "pytest {args:.}"
 test-cov = "coverage run -m pytest {args:tests}"
 cov-report = ["- coverage combine", "coverage report"]
 cov = ["test-cov", "cov-report"]
+listwhl = "ls dist/*.whl | sort -r | tail -n1 | xargs unzip -l"
+oxy = "hatch build -ct wheel"
 
 
 [[tool.hatch.envs.all.matrix]]
@@ -53,10 +61,16 @@ python = ["3.8", "3.9", "3.10", "3.11"]
 detached = true
 dependencies = ["black>=23.1.0", "mypy>=1.0.0", "ruff>=0.0.243"]
 [tool.hatch.envs.lint.scripts]
-typing = "mypy --install-types --non-interactive {args:src/tasks tests}"
+typing = "mypy --install-types --non-interactive {args:src/taskfiles tests}"
 style = ["ruff {args:.}", "black --check --diff {args:.}"]
 fmt = ["black {args:.}", "ruff --fix {args:.}", "style"]
 all = ["style", "typing"]
+
+
+[tool.hatch.envs.docs]
+detached = true
+dependencies = ["hatch-mkdocs"]
+[tool.hatch.envs.docs.scripts]
 
 
 [tool.ruff]
@@ -130,8 +144,8 @@ ignore = [
   "EM101",
 ]
 unfixable = [
-  # Don't touch unused imports
-  "F401",
+  # Don't touch unused imports (check if removed in #3)
+  # "F401",
 ]
 
 [tool.ruff.isort]
@@ -142,7 +156,7 @@ ban-relative-imports = "all"
 
 [tool.ruff.per-file-ignores]
 # Tests can use magic values, assertions, and relative imports
-"_tests/**/*" = ["PLR2004", "S101", "TID252"]
+"tests/**/*" = ["PLR2004", "S101", "TID252"]
 
 "**/k8s.py" = [
   # Mixed case for kubernetes
@@ -156,10 +170,10 @@ ban-relative-imports = "all"
 source_pkgs = ["tasks", "tests"]
 branch = true
 parallel = true
-omit = ["src/tasks/__about__.py"]
+omit = ["src/taskfiles/__about__.py"]
 
 [tool.coverage.paths]
-tasks = ["src/tasks", "*/tasks/src/tasks"]
+tasks = ["src/taskfiles", "*/tasks/src/taskfiles"]
 tests = ["tests", "*/tasks/tests"]
 
 [tool.coverage.report]
@@ -172,8 +186,12 @@ max-complexity = 5
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -q"
-testpaths = ["_tests"]
+addopts = "-ra -q -v"
+testpaths = ["tests"]
+markers = [
+  "docker: tests that run inside docker",
+  "package: tests that work with packaging",
+]
 
 
 [tool.codespell]

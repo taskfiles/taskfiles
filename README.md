@@ -175,7 +175,7 @@ is the only part tested.
 These can be triggered from:
 
 ```bash
-docker compose -f _tests/compose.yaml run --rm test
+docker compose -f tests/compose.yaml run --rm test
 ```
 
 ### Testing with docker multi-platform support
@@ -183,7 +183,7 @@ docker compose -f _tests/compose.yaml run --rm test
 On ARM Macs, run:
 
 ```bash
-PLATFORM=linux/amd64 docker compose -f _tests/compose.yaml run --rm test inv install-k9s
+PLATFORM=linux/amd64 docker compose -f tests/compose.yaml run --rm test inv install-k9s
 ```
 
 Note that Docker can hold only a tag per platform, if you see a error message like

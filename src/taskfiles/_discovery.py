@@ -8,7 +8,6 @@ from shlex import split
 from subprocess import CalledProcessError, run
 from typing import List
 
-import invoke.exceptions
 from invoke import Collection, Task
 
 TASKS_KEEP_MODULE_NAME_PREFIX_ = os.environ.get("TASKS_KEEP_MODULE_NAME_PREFIX", "False")
@@ -105,18 +104,19 @@ def is_path_a_folder(path: Path) -> bool:
     return False
 
 
-def find_and_import_tasks(
+def get_root_collection(
     where="__path__",
-    keep_module_name_prefix=TASKS_KEEP_MODULE_NAME_PREFIX,
-):
-    """Autodiscovers any .py file in the tasks/ folder and adds it to the tasks
-    collection. It can also split the task files into separate Collections.
+    split_collections=TASKS_KEEP_MODULE_NAME_PREFIX,
+) -> Collection:
+    """
+    Originally looked at the .py file in the same directory
+    and added them to a invoke.Collection returned in the `tasks` namespace.
 
     Parameters
     ----------
     where : str, optional
         The location where to find the modules, by default "__path__"
-    keep_module_name_prefix : str, optional
+    split_collections : str, optional
         If "1" will split collections, by default
             os.environ.get("TASKS_KEEP_MODULE_NAME_PREFIX")
 
@@ -128,20 +128,6 @@ def find_and_import_tasks(
         When the __path__ attribute fails to be spit (to be checked with PEX)
     """
 
-    if isinstance(where, Path):
-        mod_path_attribute = where.name
-        path = where
-    elif isinstance(where, str):
-        mod_path_attribute = globals().get(where)
-        try:
-            path, *_ = mod_path_attribute
-        except ValueError as err:
-            msg = f"Failed to process tasks in {where}: {path}"
-            raise invoke.exceptions.Failure(msg) from err
-    else:
-        msg = f"task discovery in {where} not implemented"
-        raise NotImplementedError(msg)
-
     global_ns = Collection()
 
     def populate(
@@ -152,7 +138,7 @@ def find_and_import_tasks(
         Returns True if any successful additions happened
         """
         found = False
-        if keep_module_name_prefix:
+        if split_collections:
             ns = Collection.from_module(
                 module,
                 name,
@@ -167,7 +153,7 @@ def find_and_import_tasks(
                 found = True
         return found
 
-    task_files = [p for p in Path(path).glob("*.py") if is_a_task_module(p)]
+    task_files = [p for p in Path(path).glob("*.py") if is_a_task_module(p)]  # noqa: F821
     for task_file in task_files:
         name = task_file.stem
         import_string = f"tasks.{name}"

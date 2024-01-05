@@ -1,6 +1,7 @@
 {
     "recommendations": [
         "charliermarsh.ruff",
-        "bazelbuild.vscode-bazel"
+        "bazelbuild.vscode-bazel",
+        "rubymaniac.vscode-direnv"
     ]
 }

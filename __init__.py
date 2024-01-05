@@ -1,10 +1,19 @@
+"""
+This top level __init__ is not intended to make the root
+directory a package but to support the use of the repo itself
+as a task module. i.e.: git clone git@work.github.com:taskfiles/taskfiles.git ~/tasks
+"""
 import sys
 from pathlib import Path
 
-from ._discovery import find_and_import_tasks
+if "__file__" in globals():
+    # We use absolute and not resolve here to prevent
+    # issues with symlinking
+    path = Path(__file__).absolute()
+    directory = path.parent
+    if directory.name == "tasks":
+        sys.path.insert(0, str(directory / "src"))
 
-try:
-    ns = find_and_import_tasks(where=Path(__path__[0]))
-except Exception as error:
-    # Manual import, failsafe mode
-    print(f"During auto-import the following error occurred: {error}", file=sys.stderr)
+        from taskfiles import get_root_ns
+
+        ns = get_root_ns()

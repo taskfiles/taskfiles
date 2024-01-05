@@ -24,6 +24,12 @@
         python3 -m pip install invoke pdbpp hunter
     }
 
+    install_pip_get_pip () {
+        echo "Installing pip"
+        wget https://bootstrap.pypa.io/get-pip.py -O $workdir/get-pip.py
+        python3 $workdir/get-pip.py
+    }
+
     setup_ubuntu() {
         set -ex
         # python3 present,
@@ -31,9 +37,9 @@
         echo "Set up Ubuntu"
         workdir=$(mktemp --directory)
         if ! python3 -m pip >/dev/null 2>/dev/null; then
-            echo "Installing pip"
-            wget https://bootstrap.pypa.io/get-pip.py -O $workdir/get-pip.py
-            python3 $workdir/get-pip.py
+            # Install pip with package manager
+            sudo apt-get update -yqq
+            sudo apt-get install python3-venv python3-pip -yqq
         fi
         if ! type "inv" > /dev/null; then
             python3 -m pip install invoke

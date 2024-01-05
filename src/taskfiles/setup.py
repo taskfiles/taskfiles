@@ -128,10 +128,7 @@ def download_extract_and_copy(
         else:
             target = copy_to / find_file
         try:
-            # https://stackoverflow.com/questions/42392600/oserror-errno-18-invalid-cross-device-link
-            # shutil.move(file_to_copy, target)
-            shutil.copy(file_to_copy, target)
-            os.unlink(file_to_copy)
+            shutil.move(file_to_copy, target)
         except shutil.Error:  # exists
             pass
         os.chmod(target, permission)
@@ -140,10 +137,10 @@ def download_extract_and_copy(
     with TemporaryDirectory(suffix=f"{name}-download") as tmpdirname:
         base = Path(tmpdirname)
         downloaded_file = base / name
+        # Checks for S310
+        if not url.startswith(("http:", "https:")):
+            sys.exit(f"URL must start with 'http:' or 'https:': {url}")
         try:
-            if not url.startswith(("http:", "https:")):
-                msg = "URL must start with 'http:' or 'https:'"
-                raise ValueError(msg)
             response = urllib.request.urlopen(url)  # noqa: S310
         except urllib.error.HTTPError:
             sys.exit(f"Error downloading {url}")
@@ -192,7 +189,7 @@ def format_string(braced_string: str, **extra: Dict[str, str]) -> str:
     # Some github releases use this
     if machine == "x86_64":
         machine_amd_or_arm = "amd64"
-    elif machine in {"aarch64", "arm64"}:
+    elif machine == "aarch64":
         machine_amd_or_arm = "arm64"
     else:
         machine_amd_or_arm = "FIXME"
@@ -296,8 +293,7 @@ def install_ctlptl(ctx: Context, version="0.8.19", overwrite=False):
 
 @task(help={"overwrite": "Overwrite existing file"})
 def install_k3d(ctx: Context, version="5.5.1", overwrite=False):
-    """Download control patrol (created local development clusters with \
-    connected registries)"""
+    """Downloads Rancher's k3d for local development clusters"""
     custom_system = (
         "darwin" if platform.system() == "Darwin" else platform.system().lower()
     )
@@ -354,7 +350,7 @@ def install_fzf(ctx: Context, version="0.41.1", overwrite=False):
 
 @task()
 def install_k9s(
-    ctx: Context, version="0.30.6", system=None, machine=None, overwrite=False
+    ctx: Context, version="0.30.3", system=None, machine=None, overwrite=False
 ):
     """Downloads k9s (TUI for kubernetes)"""
     url = format_string(
@@ -403,29 +399,6 @@ def install_kustomize(ctx: Context, version="5.0.3", overwrite=False):
     )
 
 
-@task()
-def install_tkn(ctx: Context, overwrite=False, verbose=False, version="0.33.0"):
-    """Install tekton CLI"""
-    machine_ = platform.machine()
-    system_ = platform.system()
-    if machine_ == "arm64":
-        machine_ = "aarch64"
-    if system_ == "Darwin":
-        machine_ = "all"
-    url = format_string(
-        "https://github.com/tektoncd/cli/releases/download/v{version}/"
-        "tkn_{version}_{system}_{machine_}.tar.gz",
-        # "/v{version}/kustomize_v{version}_{system_lower}_{machine_amd_or_arm}.tar.gz",
-        version=version,
-        machine_=machine_,
-    )
-    download_extract_and_copy(
-        url,
-        find_file="tkn",
-        overwrite=overwrite,
-    )
-
-
 @task(help={"plugin_": "Plugin to install, can be repated"})
 def install_ibmcloud_plugin(ctx: Context, plugin_: List[str] = [], overwrite=False):
     """Installs a list of plugins"""
@@ -449,13 +422,6 @@ def install_ibmcloud_plugin(ctx: Context, plugin_: List[str] = [], overwrite=Fal
         installed: Result = ctx.run(f"ibmcloud plugin install  {plugin} -f", warn=True)
         if not installed.ok:
             print(f"Plugin {plugin} failed.")
-
-
-# @task()
-# def install_direnv(ctx: Context, debug=False, overwrite=False):
-#     """Installs direnv"""
-#     # Rough translation of the bash script from https://direnv.net/install.sh
-#     kernel = ctx.run("")
 
 
 @task()
@@ -485,6 +451,42 @@ def install_ibmcloud(
 
 # TODO: Implement https://direnv.net/install.sh
 # TODO: Hook it  direnv hook > ~/.bashrc.d/03_direnv && exec $SHELL
+
+
+@task()
+def detect_shell(ctx: Context):
+    ...
+
+
+BASHRC_LINES = dedent(
+    """
+    # Include ~/.bashrc.d/*
+    if [ -d ~/.bashrc.d/] && find ~/.bashrc.d -type f 2>/dev/null; then
+        for init in ~/.bashrc.d/*; do
+            source $init
+        done
+    fi
+    # End of Include ~/.bashrc.d/*
+    """.strip()
+)
+
+
+@task()
+def create_bashrcd(ctx: Context):
+    """
+    Creates a directory ~/.bashrc.d/ and add the lines to import it at the end of
+    ~/.bashrc
+    """
+    bashrc_d = Path("~/.bashrc.d").expanduser()
+    bashrc_d.mkdir(exist_ok=True)
+
+    bashrc = Path("~/.bashrc").expanduser()
+    bashrc_contents = "" if not bashrc.exists() else bashrc.read_text()
+    add_lines = BASHRC_LINES in bashrc_contents
+
+    if add_lines:
+        with bashrc.open("+a") as fp:
+            fp.write(BASHRC_LINES)
 
 
 # TODO: Implement ensurepath for zsh

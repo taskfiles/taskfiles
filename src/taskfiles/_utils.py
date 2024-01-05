@@ -101,7 +101,7 @@ def select_branch(ctx: Context, query="Please select a branch") -> str:
     """Returns a branch name in interactive mode"""
     # Interactively select a branch
     if not which("fzf"):
-        from tasks.setup import install_fzf
+        from taskfiles.setup import install_fzf
 
         install_fzf(ctx)
 

@@ -4,10 +4,10 @@ import re
 import sys
 from pathlib import Path
 from shutil import which
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 from urllib.parse import urlparse
 
-from invoke import Context, task
+from invoke import Context, Task, task
 
 # from .plugins import Plugin
 
@@ -64,14 +64,19 @@ def version(ctx: Context):
     return info
 
 
-def _get_task_dict() -> Dict[str, Any]:
-    execute_method = inspect.currentframe().f_back.f_back.f_back
-    collection = execute_method.f_locals["self"].collection
-    tasks_by_module: Dict[str, Any] = {}
-    for name, task_ in collection.tasks.items():
-        task_for_mod = tasks_by_module.setdefault(task_.__module__, {})
-        task_for_mod[name] = task_
-    return tasks_by_module
+def _get_task_dict() -> Dict[str, Task]:
+    # Old hacky implementation
+    # execute_method = inspect.currentframe().f_back.f_back.f_back
+    # collection = execute_method.f_locals["self"].collection
+    # tasks_by_module: Dict[str, Any] = {}
+    # for name, task_ in collection.tasks.items():
+    #     task_for_mod = tasks_by_module.setdefault(task_.__module__, {})
+    #     task_for_mod[name] = task_
+    # return tasks_by_module
+    from taskfiles import get_root_ns
+
+    ns = get_root_ns()
+    return ns.tasks
 
 
 LINE_DEF_FORMAT = "({filename}, line {lineno})"
@@ -98,7 +103,7 @@ def list_tasks(
     """
     Shows the tasks that have been loaded
     """
-    from tasks._discovery import (
+    from taskfiles import (
         TASKS_KEEP_MODULE_NAME_PREFIX,
         TASKS_LOAD_PLUGINS,
         TASKS_PLUGIN_DIRS,

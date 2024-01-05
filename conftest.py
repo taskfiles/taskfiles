@@ -2,6 +2,7 @@
 This module is """
 import subprocess
 from datetime import datetime
+from pathlib import Path
 from shlex import split
 from shutil import which
 from typing import Callable
@@ -19,11 +20,25 @@ def docker():
 
 
 @pytest.fixture(scope="session")
-def git_repo():
+def git_repo_pth() -> Path:
     """Gets the top level"""
-    return (
+    return Path(
         subprocess.check_output(split("git rev-parse --show-toplevel")).decode().strip()
     )
+
+
+@pytest.fixture(
+    scope="session",
+)
+def dist_wheel_path(git_repo_pth) -> Path:
+    """
+    Returns the place to tell pip where to find the package
+    """
+    subprocess.run(
+        split("hatch build -ct"),
+        cwd=git_repo_pth,
+    )
+    return git_repo_pth / "dist"
 
 
 tags = []
