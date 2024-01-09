@@ -20,3 +20,4 @@ def test_package_installation(
     assert (
         re.match(VERSION_RE, version) is not None
     ), f"Version {version} doesn't match with {VERSION_RE}"
+    virtualenv.run("python -c 'import taskfiles;'")

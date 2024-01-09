@@ -26,6 +26,13 @@ classifiers = [
 ]
 dependencies = ["invoke<3.0"]
 
+[project.scripts]
+taskf = "taskfiles.__main__:program.run"
+taskfiles = "taskfiles.__main__:program.run"
+
+[project.optional-dependencies]
+debug = ["hunter", "pdbpp", "rich"]
+
 [tool.hatch.version]
 path = "src/taskfiles/__about__.py"
 
@@ -51,7 +58,20 @@ test-cov = "coverage run -m pytest {args:tests}"
 cov-report = ["- coverage combine", "coverage report"]
 cov = ["test-cov", "cov-report"]
 listwhl = "ls dist/*.whl | sort -r | tail -n1 | xargs unzip -l"
-oxy = "hatch build -ct wheel"
+wheel = "rm -rf dist/*.tar.gz dist/*.whl; hatch build -t wheel"
+pipx = """\
+bash -x -c '
+pipx list | grep taskfiles && pipx uninstall taskfiles;
+find dist/ -name "*.whl" -exec pipx install {{}}[debug] \\;
+'
+"""
+oxy = "hatch build -ct wheel; hatch run pyoxidizer build"
+oxyd = """
+docker run --architecure --rm -ti -v $PWD:/code:ro -w /code python:3 bash -lc 'pip install . && bash {args:}'
+"""
+dockp = "docker run --rm -ti -v $PWD:/code:ro -w /code python:3 bash -lc 'pip install . && bash {args:}'"
+# inv -l
+docki = "docker run --rm -ti -v $PWD:/tasks:ro  python:3 bash -lc 'pip install invoke && bash {args:}'"
 
 
 [[tool.hatch.envs.all.matrix]]

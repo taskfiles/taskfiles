@@ -4,11 +4,13 @@ import logging
 import os
 import pkgutil
 import sys
+from pathlib import Path
 from types import ModuleType
 from typing import Dict, Iterator
 
 from invoke.collection import Collection, Task
-from path import Path
+
+from .__about__ import __version__  # noqa: F401
 
 try:
     TASKS_KEEP_MODULE_NAME_PREFIX = ast.literal_eval(
@@ -47,7 +49,10 @@ def import_submodules(package_name) -> Dict[str, ModuleType]:
         try:
             result[name] = importlib.import_module(package_name + "." + name)
         except (ImportError, SyntaxError) as error:
-            logging.error(f"Error loading {name}: {error}")
+            if not name.startswith("__"):
+                logging.error(f"Error loading {name}: {error}")
+            else:
+                logging.error(f"Error loading {name}: {error}")
 
     return result
 
@@ -79,7 +84,13 @@ def get_root_ns(split=TASKS_KEEP_MODULE_NAME_PREFIX, cwd=None) -> Collection:
     for name, submodule in valid_submodules.items():
         logging.debug(f"Loading built-in module {name}")
         if split:
-            ns.add_collection(Collection.from_module(submodule))
+            # Core module is always top level
+            if name != "core":
+                ns.add_collection(Collection.from_module(submodule))
+            else:
+                collection = Collection.from_module(submodule)
+                for _name, task in collection.tasks.items():
+                    ns.add_task(task)
         else:
             for task in iter_tasks_module(submodule):
                 ns.add_task(task)

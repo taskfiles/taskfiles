@@ -2,6 +2,7 @@ import inspect
 import os
 import re
 import sys
+from dataclasses import dataclass, field
 from pathlib import Path
 from shutil import which
 from typing import Dict, List, Optional
@@ -82,6 +83,38 @@ def _get_task_dict() -> Dict[str, Task]:
 LINE_DEF_FORMAT = "({filename}, line {lineno})"
 
 
+@dataclass
+class TaskInfo:
+    task: Task = field(repr=False)
+    name: str = field(init=False)
+    filename: Optional[str] = field(init=False, repr=False)
+    lineno: Optional[int] = field(init=False, repr=False)
+    source_lines: List[str] = field(init=False, repr=False)
+
+    def __post_init__(self):
+        self.name = self.task.name
+        self.filename = getattr(sys.modules[self.task.body.__module__], "__file__", None)
+        self.source_lines, self.lineno = inspect.getsourcelines(self.task.body)
+
+    @classmethod
+    def from_task(cls, task: Task) -> "TaskInfo":
+        if not isinstance(task, Task):
+            msg = f"{task}({type(task)}) is not an instance of Task"
+            raise ValueError(msg)
+        return cls(task=task)
+
+    def __str__(self):
+        return f"{self.filename}:{self.lineno}"
+
+
+def get_task_location(task: Task) -> str:
+    filename = getattr(sys.modules[task.body.__module__], "__file__", None)
+    # filename = inspect.getfile(task_obj.body)
+    source_lines, lineno = inspect.getsourcelines(task.body)
+
+    return filename, lineno
+
+
 # TODO: show getenv
 @task(
     help={
@@ -101,7 +134,8 @@ def list_tasks(
     show_internal=False,
 ) -> None:
     """
-    Shows the tasks that have been loaded
+    Shows the tasks that have been loaded. This is a more detailed implementation
+    than invoke -l.
     """
     from taskfiles import (
         TASKS_KEEP_MODULE_NAME_PREFIX,
@@ -109,64 +143,84 @@ def list_tasks(
         TASKS_PLUGIN_DIRS,
     )
 
-    if TASKS_KEEP_MODULE_NAME_PREFIX:
-        sys.exit("Not supported yet. Please TASKS_KEEP_MODULE_NAME_PREFIX=False")
+    # if TASKS_KEEP_MODULE_NAME_PREFIX:
+    #     sys.exit("Not supported yet. Please TASKS_KEEP_MODULE_NAME_PREFIX=False")
 
     indent = f"{' ' * indent_}"
-    tasks = _get_task_dict()
+    # tasks = _get_task_dict()
+    from taskfiles import get_root_ns
 
-    def is_a_task_module(name, module) -> bool:
-        if name in sys.builtin_module_names:
-            return False
-        if name.startswith("tasks."):
-            return True
-        try:
-            module_path = module.__file__ or ""
-        except AttributeError:
-            module_path = ""
-        return "_plugins" in module_path
+    ns = get_root_ns()
 
-    def get_sort_value(name):
-        if "." in name:
-            *_, name = name.split(".")
-        return name
-
-    names: List[str,] = sorted(
-        (name for name, module in sys.modules.items() if is_a_task_module(name, module)),
-        key=get_sort_value,
-    )
-
-    for name in names:
-        *_, sub_name = name.split(".", maxsplit=1)
-        if "plugin" in sub_name:
-            is_internal = False
+    to_iterate = {}
+    if ns.collections:
+        for name, collection in ns.collections.items():
+            to_iterate[name] = collection
+    to_iterate[""] = ns
+    for coll_name, collection in sorted(to_iterate.items(), key=lambda tup: tup[0]):
+        if not TASKS_KEEP_MODULE_NAME_PREFIX:
+            ns_name = coll_name or "built-in"
         else:
-            is_internal = sub_name.startswith("_")
+            ns_name = coll_name or "core"
+        print(ns_name)
+        for task_name, task_ in collection.tasks.items():
+            info = TaskInfo.from_task(task_)
 
-        if is_internal and not show_internal:
-            continue
-        module = sys.modules[name]
-        this_module_tasks = tasks.get(name)
-        if not this_module_tasks:
-            continue
-        filename = getattr(module, "__file__", "not found")
-        if sub_name.startswith("_plugins"):
-            no_prefix = sub_name.replace("_plugins", "(plugin) ")
-            pretty_name = no_prefix
-        else:
-            pretty_name = f".{sub_name}"
-        msg = f"{pretty_name} (from file {filename})"
-        print(msg)
+            print(indent, task_name, info, sep=" ")
 
-        for task_name, task_obj in this_module_tasks.items():
-            if show_line_def:
-                filename = inspect.getfile(task_obj.body)
-                source_lines, lineno = inspect.getsourcelines(task_obj.body)
-                extra = line_def_format.format(**locals())
-            else:
-                extra = ""
-            print(f"{indent}{task_name} {extra}")
-        print("")
+    # def is_a_task_module(name, module) -> bool:
+    #     if name in sys.builtin_module_names:
+    #         return False
+    #     if name.startswith("tasks."):
+    #         return True
+    #     try:
+    #         module_path = module.__file__ or ""
+    #     except AttributeError:
+    #         module_path = ""
+    #     return "_plugins" in module_path
+
+    # def get_sort_value(name):
+    #     if "." in name:
+    #         *_, name = name.split(".")
+    #     return name
+
+    # names: List[str,] = sorted(
+    #     (name for name, module in sys.modules.items()
+    #        if is_a_task_module(name, module)),
+    #     key=get_sort_value,
+    # )
+
+    # for name in names:
+    #     *_, sub_name = name.split(".", maxsplit=1)
+    #     if "plugin" in sub_name:
+    #         is_internal = False
+    #     else:
+    #         is_internal = sub_name.startswith("_")
+
+    #     if is_internal and not show_internal:
+    #         continue
+    #     module = sys.modules[name]
+    #     this_module_tasks = tasks.get(name)
+    #     if not this_module_tasks:
+    #         continue
+    #     filename = getattr(module, "__file__", "not found")
+    #     if sub_name.startswith("_plugins"):
+    #         no_prefix = sub_name.replace("_plugins", "(plugin) ")
+    #         pretty_name = no_prefix
+    #     else:
+    #         pretty_name = f".{sub_name}"
+    #     msg = f"{pretty_name} (from file {filename})"
+    #     print(msg)
+
+    #     for task_name, task_obj in this_module_tasks.items():
+    #         if show_line_def:
+    #             filename = inspect.getfile(task_obj.body)
+    #             source_lines, lineno = inspect.getsourcelines(task_obj.body)
+    #             extra = line_def_format.format(**locals())
+    #         else:
+    #             extra = ""
+    #         print(f"{indent}{task_name} {extra}")
+    #     print("")
 
     print("Internal Configuration variables")
     print()
