@@ -75,7 +75,7 @@ def git_push_and_pull_data(
         "suffix": "Adds a suffix to the worktree name",
     }
 )
-def worktree(ctx: Context, branch=None, path=None, suffix: str = None):
+def worktree(ctx: Context, branch=None, path=None, suffix: str = None, sep="-"):
     """Create a git worktree for reviewing a pull request. This feature is no available
     in VSCode. In order to create more than one worktree for the same branch use suffix
     """
@@ -88,7 +88,7 @@ def worktree(ctx: Context, branch=None, path=None, suffix: str = None):
         if not path:
             this_dir_name = ctx.run("basename $(pwd)", hide=True).stdout.strip()
             branch_name_no_slash = branch.replace("/", "_")
-            name = f"{this_dir_name}.worktree.{branch_name_no_slash}"
+            name = f"{this_dir_name}{sep}worktree{sep}{branch_name_no_slash}"
             if suffix:
                 name = f"{name}.{suffix}"
             path = f"../{name}"

@@ -2,6 +2,8 @@ def make_exe():
     dist = default_python_distribution()
     policy = dist.make_python_packaging_policy()
     python_config = dist.make_python_interpreter_config()
+    # Enable loading local_tasks and plugins
+    python_config.filesystem_importer = True
     python_config.run_module = "taskfiles"
     exe = dist.to_python_executable(
         name="tsk",
@@ -9,8 +11,12 @@ def make_exe():
         config=python_config,
     )
     exe.add_python_resources(exe.pip_install(["invoke==2.2"]))
+    # https://pyoxidizer.readthedocs.io/en/stable/pyoxidizer_managing_projects.html?highlight=VARS#defining-extra-variables-in-starlark-environment
+    # This allows ot pass PACKAAGE='taskfiles[debug]' if a specific version
+    # is required
+    taskfile_package = VARS.get("PACKAGE", "taskfiles")
     exe.add_python_resources(
-        exe.pip_install(["taskfiles"],
+        exe.pip_install([taskfile_package],
         extra_envs={
             "PIP_FIND_LINKS": "dist/"
         })

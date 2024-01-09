@@ -305,3 +305,8 @@ def list_plugins(ctx: Context, name=None):
 @task()
 def update_plugin(ctx: Context, name=None):
     sys.exit("Not implemented")
+
+
+@task()
+def debugger(ctx: Context):
+    breakpoint()  # noqa: T100

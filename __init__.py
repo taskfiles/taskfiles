@@ -2,7 +2,7 @@
 This top level __init__ is not intended to make the root
 directory a package but to support the use of the repo itself
 as a task module. i.e.: git clone git@work.github.com:taskfiles/taskfiles.git ~/tasks
-"""
+"""  # noqa: N999
 import sys
 from pathlib import Path
 

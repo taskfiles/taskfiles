@@ -31,7 +31,7 @@ taskf = "taskfiles.__main__:program.run"
 taskfiles = "taskfiles.__main__:program.run"
 
 [project.optional-dependencies]
-debug = ["hunter", "pdbpp", "rich"]
+debug = ["pdbpp", "rich"]
 
 [tool.hatch.version]
 path = "src/taskfiles/__about__.py"
@@ -65,8 +65,8 @@ pipx list | grep taskfiles && pipx uninstall taskfiles;
 find dist/ -name "*.whl" -exec pipx install {{}}[debug] \\;
 '
 """
-oxy = "hatch build -ct wheel; hatch run pyoxidizer build"
-oxyd = """
+bin = "hatch build -ct wheel; hatch run pyoxidizer build"
+bin_d = """
 docker run --architecure --rm -ti -v $PWD:/code:ro -w /code python:3 bash -lc 'pip install . && bash {args:}'
 """
 dockp = "docker run --rm -ti -v $PWD:/code:ro -w /code python:3 bash -lc 'pip install . && bash {args:}'"
@@ -177,6 +177,7 @@ ban-relative-imports = "all"
 [tool.ruff.per-file-ignores]
 # Tests can use magic values, assertions, and relative imports
 "tests/**/*" = ["PLR2004", "S101", "TID252"]
+"**/*/__init__.py" = ["N999"]
 
 "**/k8s.py" = [
   # Mixed case for kubernetes
