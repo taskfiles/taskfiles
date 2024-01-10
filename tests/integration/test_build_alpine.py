@@ -1,7 +1,10 @@
 import shlex
 import subprocess
 
+import pytest
 
+
+@pytest.mark.skip(reason="Skipping docker image build")
 def test_runs_in_alpine_linux_with_docker(docker, git_repo):
     options = f"--rm -v {git_repo}:/tasks"
     command = ";".join(

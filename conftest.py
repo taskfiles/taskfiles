@@ -5,9 +5,11 @@ from datetime import datetime
 from pathlib import Path
 from shlex import split
 from shutil import which
-from typing import Callable
+from typing import Any, Callable
 
 import pytest
+from invoke import Context
+from invoke.runners import Result
 
 
 @pytest.fixture(scope="session")
@@ -73,3 +75,30 @@ def build_image(docker, git_repo) -> Callable[[str, str], str]:
 @pytest.fixture(scope="session")
 def image(build_image) -> str:
     return build_image()
+
+
+@pytest.fixture()
+def ctx() -> Context:
+    # TODO: Implement this
+    return Context()
+
+
+@pytest.fixture()
+def run(ctx) -> Callable[[Any], Result]:
+    def _run(*args, **kwargs) -> Result:
+        # https://github.com/pyinvoke/invoke/issues/710#issuecomment-624534674
+        kwargs.update(pty=True, in_stream=False)
+        return ctx.run(*args, **kwargs)
+
+    return _run
+
+
+# @pytest.fixture()
+# def collections(git_repo_pth) -> Collection:
+#     """Gives the collection of tasks"""
+#     cwd_save = os.getcwd()
+
+
+#     ns = taskfiles.get_root_ns()
+#     os.chdir(cwd_save)
+#     return ns
