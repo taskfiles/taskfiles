@@ -24,6 +24,9 @@ def docker():
 @pytest.fixture(scope="session")
 def git_repo_pth() -> Path:
     """Gets the top level"""
+    if not which("git"):
+        pytest.fail("git binary not available")
+
     return Path(
         subprocess.check_output(split("git rev-parse --show-toplevel")).decode().strip()
     )
@@ -102,3 +105,38 @@ def run(ctx) -> Callable[[Any], Result]:
 #     ns = taskfiles.get_root_ns()
 #     os.chdir(cwd_save)
 #     return ns
+
+
+@pytest.fixture()
+def repo_zipfile(run, workspace, git_repo_pth) -> Path:
+    archive = workspace.workspace / "tasks.zip"
+
+    run(f"git -C {git_repo_pth} archive -o {archive} HEAD")
+    return archive
+
+
+@pytest.fixture()
+def installable_package(
+    tasks_folder_in_workspace,
+    virtualenv,
+) -> Path:
+    virtualenv.run("pip install build")
+    virtualenv.run(f"python -m build {tasks_folder_in_workspace} --wheel")
+    dist = tasks_folder_in_workspace / "dist"
+    return next(dist.glob("*.whl"))
+
+
+@pytest.fixture()
+def tasks_folder_in_workspace(workspace, repo_zipfile, ctx, run) -> Path:
+    """A separate folder with the clean contests of the repo"""
+    tasks: Path = workspace.workspace / "tasks"
+    tasks.mkdir()
+    with ctx.cd(tasks):
+        run(f"unzip {repo_zipfile}")
+    return tasks
+
+
+@pytest.fixture()
+def installable_package_dir(installable_package) -> Path:
+    """Create a .whl file with the clean repo state"""
+    return installable_package.parent
