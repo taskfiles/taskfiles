@@ -21,7 +21,7 @@ except Exception as error:
     TASKS_KEEP_MODULE_NAME_PREFIX = False
 
 try:
-    TASKS_LOAD_PLUGINS = bool(ast.literal_eval(os.getenv("TASKS_LOAD_PLUGINS", "True")))
+    TASKS_LOAD_PLUGINS = ast.literal_eval(os.getenv("TASKS_LOAD_PLUGINS", "True"))
 except Exception as error:
     logging.error(f"Reading env var TASKS_LOAD_PLUGINS: {error}")
     TASKS_LOAD_PLUGINS = False
@@ -99,29 +99,20 @@ def get_root_ns(split=TASKS_KEEP_MODULE_NAME_PREFIX, cwd=None) -> Collection:
     cwd = Path(cwd or os.getcwd())
     if TASKS_EXECUTABLE:
         logging.info(f"Adding {cwd} to the sys.path")
-        sys.path.append(cwd)
-        logging.debug("Local path is {sys.path}")
+        sys.path.insert(0, ".")
+    try:
+        logging.info(f"About to local tasks from {cwd}")
+        import local_tasks
 
-    local_tasks_path = cwd / "local_tasks.py"
-    if local_tasks_path.exists():
-        logging.info(f"Local tasks found {local_tasks_path}, attempting to import it")
-        try:
-            logging.info(f"About to local tasks from {cwd}")
-            import local_tasks
-
-            logging.info(f"Tasks from {cwd} loaded")
-        except ImportError as error:
-            logging.debug(
-                f"{local_tasks_path} could not be imported from {os.getcwd()}: {error}"
-            )
-        except Exception as error:
-            logging.error(f"Error importing {local_tasks_path}: {error}")
-        else:
-            for task in iter_tasks_module(local_tasks):
-                logging.info(f"Loading local task {task}")
-                ns.add_task(task)
+        logging.info(f"Tasks from {cwd} loaded")
+    except ImportError as error:
+        logging.debug(f"local_tasks.py could not be imported from {os.getcwd()}: {error}")
+    except Exception as error:
+        logging.error(f"Error importing local_tasks: {error}")
     else:
-        logging.info("No local tasks module found.")
+        for task in iter_tasks_module(local_tasks):
+            logging.info(f"Loading local task {task}")
+            ns.add_task(task)
 
     # Load plugins
     if "__file__" in globals():

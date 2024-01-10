@@ -1,3 +1,3 @@
-from ._program import TaskfilesProgram
+from .program import TaskfilesProgram
 
 program = TaskfilesProgram()
