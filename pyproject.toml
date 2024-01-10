@@ -48,6 +48,7 @@ dependencies = [
   # "shiv==1.0.3",
   "pdbpp==0.10.3",
   "pyoxidizer==0.24.0",
+  "build",
 ]
 
 [tool.hatch.envs.default.scripts]
@@ -212,6 +213,7 @@ testpaths = ["tests"]
 markers = [
   "docker: tests that run inside docker",
   "package: tests that work with packaging",
+  "external: requires external network access (i.e.: pip install)"
 ]
 
 
