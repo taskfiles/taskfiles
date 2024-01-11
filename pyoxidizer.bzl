@@ -1,3 +1,7 @@
+# https://pyoxidizer.readthedocs.io/en/stable/pyoxidizer_config_global_state.html#starlark_pyoxidizer.set_build_path
+set_build_path(VARS.get("BUILD_PATH", "$CWD/dist"))
+binary_name = VARS.get("BINARY_NAME", "tsk")
+
 def make_exe():
     dist = default_python_distribution()
     policy = dist.make_python_packaging_policy()
@@ -6,7 +10,7 @@ def make_exe():
     python_config.filesystem_importer = True
     python_config.run_module = "taskfiles"
     exe = dist.to_python_executable(
-        name="tsk",
+        name=binary_name,
         packaging_policy=policy,
         config=python_config,
     )
@@ -15,10 +19,11 @@ def make_exe():
     # This allows ot pass PACKAAGE='taskfiles[debug]' if a specific version
     # is required
     taskfile_package = VARS.get("PACKAGE", "taskfiles")
+    PIP_FIND_LINKS = VARS.get("PIP_FIND_LINKS", "dist/")
     exe.add_python_resources(
         exe.pip_install([taskfile_package],
         extra_envs={
-            "PIP_FIND_LINKS": "dist/"
+            "PIP_FIND_LINKS": PIP_FIND_LINKS,
         })
     )
     return exe
