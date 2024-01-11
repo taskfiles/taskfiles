@@ -9,7 +9,8 @@ from datetime import datetime
 from pathlib import Path
 from shlex import split
 from shutil import which
-from typing import Callable, Dict, List
+from types import NoneType
+from typing import Callable, Dict, List, Type, TypeVar
 
 import pytest
 from invoke import Context
@@ -185,7 +186,13 @@ def installable_package_dir(installable_package) -> Path:
 
 
 @dataclass
-class BinaryCache:
+class JsonCache:
+    def to_json(self):
+        raise NotADirectoryError("Please implement this method")
+
+
+@dataclass
+class BinaryCache(JsonCache):
     """Cache binaries for pytest.config.cache in JSON friendly way"""
 
     binary_b64: str = field(repr=False, default_factory=str)
@@ -218,6 +225,7 @@ class BinaryCache:
             "creation_time": self.creation_time.isoformat(),
         }
 
+    @property
     def content_length(self) -> int:
         return len(self.binary_b64)
 
@@ -228,26 +236,55 @@ class BinaryCache:
         return True
 
 
+CacheContainer = TypeVar("CacheContainer", bound=JsonCache)
+
+
+@pytest.fixture()
+def get_cached_value(
+    request: pytest.FixtureRequest
+) -> Callable[[str, Type[CacheContainer]], CacheContainer]:
+    def func(name: str, cache_type: Type[CacheContainer]) -> CacheContainer:
+        data = request.config.cache.get(name, default={})
+        return cache_type(**data)
+
+    return func
+
+
+@pytest.fixture()
+def set_cached_value(
+    request: pytest.FixtureRequest
+) -> Callable[[str, CacheContainer], NoneType]:
+    def func(name: str, instance: CacheContainer) -> None:
+        request.config.cache.set(name, instance.to_json())
+
+    return func
+
+
 @pytest.fixture(
     # scope="module"
 )
 def task_binary(
-    request,
+    request: pytest.FixtureRequest,
+    get_cached_value,
+    set_cached_value,
     tasks_folder_in_workspace: Path,
-    installable_package_dir,
+    # This two fixtures are called with request.get
+    # installable_package_dir,
     run,
     ctx,
     tmp_path,
     binary_name: str,
 ) -> Path:
     """
-    Builds a binary with pyoxidizer and return the path to it
+    Builds a binary with pyoxidizer and return the path to it. Uses pytest cache
+    to speed up between builds.
     """
+
     # This is a speedup but it's not thread safe yet
-    bin_cache: BinaryCache = BinaryCache(
-        request.config.cache.get("task_binary", default={})
-    )
+    bin_cache: BinaryCache = get_cached_value("task_binary", BinaryCache)
+
     if not bin_cache.is_valid():
+        installable_package_dir = request.getfixturevalue("installable_package_dir")
         with ctx.cd(tasks_folder_in_workspace):
             res = run(
                 "pyoxidizer build",
@@ -259,10 +296,10 @@ def task_binary(
         out_err: List[str] = res.stdout.splitlines() + res.stderr.splitlines()
         line = [line for line in out_err if "installing files to" in line]
         *_, path = line[0].rsplit(" ")
-        # XXX: Parametrize the name of the binary
         temp_binary = Path(path) / binary_name
         bin_cache = BinaryCache.from_path(temp_binary)
-        request.config.cache.set("task_binary", bin_cache.to_json())
+        set_cached_value("task_binary", bin_cache)
+
     target = tasks_folder_in_workspace / binary_name
     bin_cache.write_to_path(target)
     return target
@@ -273,5 +310,12 @@ WorkspaceWithBinary = Annotated[Path, "Directory with tsk binary"]
 
 @pytest.fixture()
 def workspace_with_binary(workspace, task_binary) -> WorkspaceWithBinary:
+    """Returns a Path folder with the binary in it"""
     shutil.copy(task_binary, workspace.workspace)
     return workspace_with_binary
+
+
+@pytest.fixture()
+def workspace_path(workspace) -> Path:
+    """Returns the path of the workspace in pathlib.Path (not path.Path)"""
+    return Path(str(workspace.workspace))
