@@ -312,7 +312,7 @@ WorkspaceWithBinary = Annotated[Path, "Directory with tsk binary"]
 def workspace_with_binary(workspace, task_binary) -> WorkspaceWithBinary:
     """Returns a Path folder with the binary in it"""
     shutil.copy(task_binary, workspace.workspace)
-    return workspace_with_binary
+    return workspace
 
 
 @pytest.fixture()
