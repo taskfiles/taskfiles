@@ -19,7 +19,7 @@ kindV1Alpha4Cluster:
   name: {name}
   nodes:
     - role: control-plane
-      image: kindest/node:v1.25.11
+      image: kindest/node:{version}
       kubeadmConfigPatches:
         - |-
           apiVersion: kubeadm.k8s.io/v1beta1
@@ -37,9 +37,9 @@ kindV1Alpha4Cluster:
                    node-labels: "ingress-ready=true"
 
     - role: worker
-      image: kindest/node:v1.25.11
+      image: kindest/node:{version}
     - role: worker
-      image: kindest/node:v1.25.11
+      image: kindest/node:{version}
 """
 
 K3D_DEV_CLUSTER_CTLPTL_FORMAT = """

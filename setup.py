@@ -15,7 +15,7 @@ from typing import Dict, Iterator, List, Union
 
 from invoke import Context, Result, Task, task
 
-from ._utils import get_git_remotes, long_command
+from ._utils import long_command
 
 
 def is_directory_writable(a_directory: Union[str, Path]) -> bool:
@@ -37,6 +37,7 @@ def is_directory_writable(a_directory: Union[str, Path]) -> bool:
 HOME: Path = Path("~").expanduser()
 
 
+# FIXME: The directory used seems to be random
 def find_suitable_writable_directories_in_path() -> List[Path]:
     """Find a directory where we can download binaries using the $PATH
     environment variable. It will prefer ~/.local/bin"""
@@ -73,7 +74,7 @@ def download_extract_and_copy(
     url : str
         The download URL (likely a github release)
     find_file : str, optional
-        The file to copy, by default None
+        The file to copy can be a glob/fnmatch expression, e.g.: **/helm, by default None
     copy_to : Union[str, Path], optional
         Either a Path to drop the file at, or "auto", by default "auto"
 
@@ -578,15 +579,3 @@ def install_all(ctx: Context, debug=False, overwrite=False):
             function(ctx, overwrite=overwrite)
         except SystemExit:
             print(f"Error running {name}")
-
-
-@task()
-def tmux_conf(
-    ctx: Context,
-    repo="https://github.com/gpakosz/.tmux.git",
-    verbose=False,
-):
-    tmux_conf_dir = Path("~/.tmux").expanduser().absolute()
-    remotes = get_git_remotes(ctx, tmux_conf_dir, verbose=verbose)
-    if repo in remotes.values():
-        print("Already setup")

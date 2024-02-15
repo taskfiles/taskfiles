@@ -533,6 +533,7 @@ def get_default_kube_context(ctx: Context) -> Optional[str]:
     return name
 
 
+@task()
 def get_dev_cluster_name_suffix(ctx: Context, max_name_length=31):
     """Gets the name suffix of the default cluster, it's called suffix because
     ctlptl will prefix with the product type, like kind-, k3d-, minikube-, etc."""
@@ -556,16 +557,22 @@ def get_dev_cluster_context(ctx: Context, product=None):
     return full_name[:32]
 
 
+K8S_NODE_VERSION = os.getenv("PIPELINE_VERSION", "v1.26")
+
+
 @task(
     pre=[Task(install_ctlptl)],
     help={
         "type_": "Type of development cluster, k3d and kind clusters are supported",
         "name": "Name of the cluster",
         "debug": "Show debugging information of the creation process",
+        "version": "The kubernetes node version to use. Override with $K8S_NODE_VERSION",
     },
     autoprint=True,
 )
-def create_local_dev_cluster(ctx: Context, type_=None, name=None, debug=False):
+def create_local_dev_cluster(
+    ctx: Context, type_=None, name=None, debug=False, version=K8S_NODE_VERSION
+):
     """Creates a local development cluster"""
     if not name:
         name = get_dev_cluster_name_suffix(ctx)
@@ -576,7 +583,16 @@ def create_local_dev_cluster(ctx: Context, type_=None, name=None, debug=False):
 
     if type_ == "kind":
         install_kind(ctx)
-        config = KIND_DEV_CLUSTER_CTLPTL_FORMAT.format(name=name)
+        if version == "pick":
+            versions = ctx.run(
+                "skopeo list-tags docker://docker.io/kindest/node | "
+                "yq -p json '.Tags | .[]'"
+            )
+
+            version = picker(ctx, versions)
+            if not version:
+                sys.exit("No version picked")
+        config = KIND_DEV_CLUSTER_CTLPTL_FORMAT.format(name=name, version=version)
     elif type_ == "k3d":
         install_k3d(ctx)
 

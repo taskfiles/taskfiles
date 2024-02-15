@@ -235,8 +235,8 @@ def push_all_remotes(ctx: Context, ref="HEAD", skip=[], verbose=False):
 @task()
 def worktree_cleanup(ctx: Context, git_repo_root=None):
     """Deletes worktrees created by inv worktree-create"""
-    if git_repo_root:
-        git_args = f"-C {git_repo_root}"
+    git_args = "" if not git_repo_root else f"-C {git_repo_root}"
+
     worktrees: List[WorktreeItem] = get_git_worktrees(ctx, git_repo_root=git_repo_root)
 
     for worktree_item in worktrees:
